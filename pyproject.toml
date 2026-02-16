@@ -60,6 +60,7 @@ dependencies = [
     # Utilities
     "nest-asyncio",
     "pyngrok",
+    "filelock",
 ]
 
 [project.optional-dependencies]
