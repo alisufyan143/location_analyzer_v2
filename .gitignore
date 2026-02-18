@@ -205,3 +205,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+test_proxy_browser.py
+test_proxy_check.py
+Dataset/

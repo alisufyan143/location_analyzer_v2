@@ -29,6 +29,7 @@ dependencies = [
     # Web Scraping
     "selenium",
     "undetected-chromedriver",
+    "seleniumbase",
     "playwright",
     "beautifulsoup4",
     "requests",
