@@ -83,3 +83,34 @@ Structured logging via `logging_config.py`:
 - **Console**: `HH:MM:SS | LEVEL | message`
 - **File**: `YYYY-MM-DD HH:MM:SS | LEVEL | module:function:line | message`
 - Third-party loggers (urllib3, selenium, playwright) suppressed to WARNING
+
+## Database Schema (Phase 2)
+
+We use **SQLAlchemy ORM** with a `Postcode` centric model.
+
+### Key Models
+*   **Postcode**: Primary entity (Postcode, Outercode, Lat/Lon).
+*   **Demographics**: One-to-one with Postcode (Population, Income, Households).
+*   **CrystalRoof Data**: JSON-based storage for flexible scraping results (Transport, Amenities, Affluence).
+*   **GoogleMapsPlace**: Major institutions (Hospitals, Universities) linked to Postcode.
+
+### Caching
+*   **JSON Cache**: Thread-safe file-based cache in `data/cache/`.
+*   **Strategy**: Check cache -> Scrape -> Save to Cache -> Save to DB.
+
+## Scraper Design (Phase 3)
+
+Resilient scraping architecture with multi-layer fallback.
+
+### core Components
+1.  **BaseScraper**: Handles browser lifecycle (Playwright/Selenium), retries, and rate limiting.
+2.  **Strategies**:
+    *   **User-Agent Rotation**: Rotates through 50+ real UAs.
+    *   **Stealth**: Uses `undetected-chromedriver` and Playwright stealth contexts.
+    *   **Fallback**: `PostcodeArea` (Primary) -> `StreetCheck` (Backup) for demographics.
+
+### Specific Scrapers
+*   **Demographics**: resilient fallback chain.
+*   **CrystalRoof**: Direct DOM extraction for Affluence, Transport, Amenities.
+*   **GoogleMaps**: Direct search for institutions near postcode.
+*   **Radius**: "As the crow flies" search for schools/hospitals using FreeMapTools.

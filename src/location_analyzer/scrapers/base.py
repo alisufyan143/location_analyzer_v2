@@ -79,23 +79,33 @@ class BaseScraper(abc.ABC):
 
     # ─── Fallback Chain ─────────────────────────────────────
 
-    def scrape_with_fallback(self, postcode: str) -> dict[str, Any]:
+    def scrape_with_fallback(self, postcode: str, **kwargs) -> dict[str, Any]:
         """
         Try scraping, fall back to cache on failure.
 
         Chain: Live scrape → Cached data → Raise error
+
+        When using arguments (like radius_miles), the cache key incorporates them
+        to ensure uniqueness.
         """
+        # Create a unique cache key including kwargs if present
+        cache_key = postcode
+        if kwargs:
+            # Sort kwargs for deterministic key (e.g. "SW1A 1AA|radius_miles=2.0")
+            arg_str = "|".join(f"{k}={v}" for k, v in sorted(kwargs.items()))
+            cache_key = f"{postcode}|{arg_str}"
+
         try:
-            data = self.scrape(postcode)
+            data = self.scrape(postcode, **kwargs)
             # Cache successful result
             if self.CACHE_CATEGORY and data:
-                self._cache.set(self.CACHE_CATEGORY, postcode, data)
+                self._cache.set(self.CACHE_CATEGORY, cache_key, data)
             return data
         except ScraperError as e:
             logger.warning("Scrape failed for %s, trying cache: %s", postcode, e)
-            cached = self._cache.get(self.CACHE_CATEGORY, postcode)
+            cached = self._cache.get(self.CACHE_CATEGORY, cache_key)
             if cached:
-                logger.info("Using cached data for %s", postcode)
+                logger.info("Using cached data for %s", cache_key)
                 return cached
             raise
 

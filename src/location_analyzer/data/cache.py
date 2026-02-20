@@ -51,13 +51,16 @@ class CacheManager:
             (self.cache_dir / category).mkdir(parents=True, exist_ok=True)
 
     @staticmethod
-    def _safe_key(postcode: str) -> str:
-        """Convert postcode to filesystem-safe key: 'SW1A 1AA' → 'SW1A_1AA'."""
-        return postcode.strip().upper().replace(" ", "_")
+    def _safe_key(key: str) -> str:
+        """
+        Generate a filesystem-safe filename from the key using MD5.
+        This handles special characters (like '|', '=', '/') safely.
+        """
+        return hashlib.md5(key.encode("utf-8")).hexdigest()
 
-    def _path_for(self, category: str, postcode: str) -> Path:
+    def _path_for(self, category: str, key: str) -> Path:
         """Get the file path for a cache entry."""
-        return self.cache_dir / category / f"{self._safe_key(postcode)}.json"
+        return self.cache_dir / category / f"{self._safe_key(key)}.json"
 
     def _lock_for(self, path: Path) -> FileLock:
         """Get a file lock for thread-safe access."""

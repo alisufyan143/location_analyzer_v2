@@ -208,3 +208,6 @@ __marimo__/
 test_proxy_browser.py
 test_proxy_check.py
 Dataset/
+notebooks/
+data/
+node_modules/

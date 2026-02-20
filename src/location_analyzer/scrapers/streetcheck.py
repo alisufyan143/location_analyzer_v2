@@ -170,7 +170,7 @@ class DemographicsScraper(BaseScraper):
         url_pa = f"{self.BASE_URL}/{town}/{outercode.lower()}/"
 
         try:
-            soup_pa = self._fetch_with_playwright(url_pa, outercode)
+            soup_pa = self._fetch_with_uc(url_pa, outercode)
             return self._parse_postcodearea(soup_pa, outercode)
         except Exception as e:
             logger.warning(
@@ -628,7 +628,7 @@ class DemographicsScraper(BaseScraper):
         results = []
         for code in outercodes:
             try:
-                data = self.scrape(code)
+                data = self.scrape_with_fallback(code)
                 results.append(data)
             except Exception as e:
                 logger.warning("Skipping outercode %s: %s", code, e)
