@@ -60,6 +60,7 @@ class PredictionService:
         Replicates the exact Feature Engineering pipeline from Section 5 of the Jupyter Notebook.
         """
         df_clean = df.copy()
+        df_clean = df_clean.astype(float, errors='ignore')
 
         # 1. Population Capping (OOD Fix)
         if 'population' in df_clean.columns:
@@ -168,7 +169,12 @@ class PredictionService:
         cat_features = ['Day_of_Week', 'Nearest_Station_Type']
         for col in cat_features:
             if col in df_final.columns:
-                df_final[col] = df_final[col].astype('category')
+                # Cast through string to prevent float indices from np.nan injection,
+                # then explicitly back to category with actual NaN handling
+                cat_col = df_final[col].astype(str).replace('nan', np.nan).astype('category')
+                if len(cat_col.cat.categories) == 0:
+                    cat_col = cat_col.cat.add_categories(['Missing'])
+                df_final[col] = cat_col
 
         # Convert remaining object columns to float to avoid generic native typing errors
         for col in df_final.columns:
