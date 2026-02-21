@@ -1,6 +1,7 @@
 import logging
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, Request
-from location_analyzer.api.schemas import PredictRequest, PredictResponse
+from location_analyzer.api.schemas import PredictRequest, PredictResponse, TimeSeriesPrediction
 from location_analyzer.pipeline.inference_pipeline import InferencePipeline
 
 logger = logging.getLogger(__name__)
@@ -32,15 +33,40 @@ async def predict_sales(request_body: PredictRequest, request: Request):
         if request_body.branch_name:
             features['Branch Name'] = request_body.branch_name
             
-        # Step 2: Feed the unstructured Scraper data into the ML Model Feature Engineering pipeline
-        # predict() expects a List of Dictionaries (oriented records)
-        predictions = model_service.predict([features])
-        predicted_sales = predictions[0]
+        # Step 2: Time Series Generation
+        # We artificially generate 12 distinct dates for this exact location over the next year
+        # to force the XGBoost model to account for Month/Seasonality variances.
+        current_date = datetime.now()
+        features_list = []
+        dates_list = []
+        
+        for i in range(12):
+            m = current_date.month + i
+            y = current_date.year + (m - 1) // 12
+            m = (m - 1) % 12 + 1
+            
+            # Predict for the 1st day of that future month
+            pred_date = datetime(y, m, 1)
+            f_copy = features.copy()
+            f_copy['Date'] = pred_date.strftime("%Y-%m-%d")
+            
+            features_list.append(f_copy)
+            dates_list.append(pred_date.strftime("%b %Y"))
+
+        # Feed the batch of 12 records into the ML Model Feature Engineering pipeline simultaneously
+        predictions = model_service.predict(features_list)
+        
+        # Format the time series graph
+        time_series = [
+            TimeSeriesPrediction(date=d, predicted_sales=round(p, 2))
+            for d, p in zip(dates_list, predictions)
+        ]
         
         return PredictResponse(
             postcode=postcode,
-            predicted_sales=round(predicted_sales, 2),
-            features=features
+            predicted_sales=time_series[0].predicted_sales,
+            features=features,
+            time_series=time_series
         )
         
     except Exception as e:

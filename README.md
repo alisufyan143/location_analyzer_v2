@@ -1,127 +1,90 @@
 # 📍 Location Analyzer v2
 
-> **Production-grade UK postcode analysis tool powering strategic business decisions.**
-> Features demographic scraping, advanced ML sales prediction, and an interactive web dashboard.
+> **Production-grade UK postcode analysis tool powering strategic retail expansion.**
+> Features live dual-source demographic scraping, XG-Boost Time-Series sales forecasting, and an interactive React dashboard.
 
 ---
 
 ## 🚀 Overview
 
-**Location Analyzer v2** is a robust Python application designed to evaluate the commercial potential of UK postcodes. By aggregating data from multiple demographic sources (Census, Crime, Affluence) and combining it with proprietary sales data, it uses an **Ensemble Machine Learning Pipeline** to predict future branch performance with high accuracy.
+**Location Analyzer v2** is a robust Full-Stack AI application designed to evaluate the commercial potential of UK postcodes for new retail branches. By aggregating live data from demographic & transport sources (StreetCheck, CrystalRoof) and piping it through an advanced Machine Learning pipeline, it outputs highly accurate £ Sales Revenue projections.
 
 ### Key Capabilities
-*   **🕷️ Resilient Scraping Architecture**: Multi-source data aggregation (FreeMapTools, StreetCheck, CrystalRoof, Google Maps) with anti-detection layers (proxy rotation, user-agent pooling).
-*   **🤖 Advanced ML Pipeline**: Trains and competes 10+ models (XGBoost, LightGBM, CatBoost, etc.) to find the optimal predictor.
-*   **📊 Interactive Dashboard**: A modern web interface (FastAPI + Bokeh) to visualize demographic clusters, sales trends, and competitor proximity.
-*   **🛡️ Production Ready**: Dockerized deployment, dual-database support (PostgreSQL/SQLite), and comprehensive testing.
+*   **🕸️ Resilient Live Scraping**: Async Playwright Orchestration scraping `postcodearea.co.uk` and `crystalroof.com` simultaneously upon user request.
+*   **🤖 XGBoost Time-Series Forecasting**: Evaluates 12+ demographic features, applies rigorous Scikit-Learn transformations, and generates a 12-month trailing sales forecast.
+*   **📊 Interactive React Dashboard**: A beautiful Dark-Mode `Vite` + `React` interface featuring `Leaflet` geospatial mapping and `Recharts` data visualization.
+*   **⚡ FastAPI Microservice**: High-concurrency python backend serving `pydantic` validated JSON APIs.
 
 ---
 
 ## 🛠️ Architecture
 
-The project follows a clean, modular architecture designed for maintainability and scale.
+The project follows a decoupled monolithic architecture separating ML logic, the API serving layer, and the client application.
 
 ```text
-src/location_analyzer/
-├── api/               # ⚡ FastAPI Service (REST endpoints)
-├── data/              # 🗄️ Database Layer (SQLAlchemy + Pydantic)
-├── ml/                # 🧠 ML Core (Training, Prediction, Evaluation)
-├── pipeline/          # ⚙️ Orchestration (ETL + Analysis Workflows)
-├── scrapers/          # 🕸️ Scraper Framework (Playwright + Requests)
-└── visualization/     # 📈 Dashboard Engine (Bokeh + Jinja2)
+location_analyzer_v2/
+├── frontend/                     # ⚛️ React + Vite Web Dashboard (Phase 5.2)
+│   ├── src/components/           # Recharts, Leaflet Map, Glassmorphism UI
+│   └── src/index.css             # Vanilla CSS Dark Theme System
+├── src/location_analyzer/
+│   ├── api/                      # ⚡ FastAPI Service (Phase 5.1)
+│   ├── config.py                 # 🔧 Pydantic BaseSettings Environment Management
+│   ├── ml/                       # 🧠 Machine Learning Engine (Phase 4)
+│   ├── pipeline/                 # ⚙️ Orchestration & Feature Mapping (Phase 5)
+│   └── scrapers/                 # 🕸️ Playwright Extraction Agents (Phase 3)
+├── models/                       # 🏋️‍♂️ Serialized .pkl Models & Transformers
+└── notebooks/                    # 📓 Data Science EDA & Training
 ```
 
 ---
 
 ## 🏁 Quick Start
 
-### Prerequisites
-*   Python 3.10+
-*   Chrome/Chromium (for Playwright scrapers)
-*   PostgreSQL (optional for Prod, SQLite used by default)
+To launch the full-stack application locally, you must run both the Python Backend and the Node.js Frontend simultaneously.
 
-### Installation
+### 1️⃣ Start the FastAPI Backend
+Ensure your `conda` environment is activated and dependencies are installed.
 
-1.  **Clone the repository**
-    ```bash
-    git clone https://github.com/alisufyan143/location_analyzer_v2.git
-    cd location_analyzer_v2
-    ```
+```bash
+cd location_analyzer_v2
+python -m uvicorn src.location_analyzer.api.main:app --reload
+```
+The API will initialize, load the heavy XGBoost `.pkl` artifacts into memory, and begin listening on `http://127.0.0.1:8000`.
 
-2.  **Set up environment**
-    ```bash
-    python -m venv venv
-    venv\Scripts\activate  # Windows
-    # source venv/bin/activate  # Mac/Linux
-    
-    pip install -e ".[dev]"
-    playwright install chromium
-    ```
+### 2️⃣ Start the React Frontend
+Open a **second terminal window**.
 
-3.  **Configure secrets**
-    ```bash
-    cp .env.example .env
-    # Edit .env with your API keys and Proxy settings
-    ```
+```bash
+cd location_analyzer_v2/frontend
+npm install
+npm run dev
+```
 
-4.  **Run the analysis**
-    ```bash
-    # Run the API server
-    python -m uvicorn src.location_analyzer.api.app:app --reload --port 8000
-    ```
-
-    Visit `http://localhost:8000/docs` for the API definition or `http://localhost:8000/dashboard` for the analytics UI.
+Visit the local URL (usually `http://localhost:5173`) in your browser to interact with the Dashboard.
 
 ---
 
-## 📦 Data & ML Strategy
+## 📈 The ML Feature Engineering Pipeline
 
-### Dataset Versioning
-We use a structured directory approach to track raw and processed data versions.
+The inference engine strictly mirrors the training preprocessing rules to prevent data-leakage and shape mismatches:
+1.  **Imputation & Capping**: Population outliers bounded.
+2.  **Log1p Transforms**: Applied to magnitudes (`population`, `Distance_to_Nearest_Station`).
+3.  **KBins Discretizer**: KMeans binning for employment statistics.
+4.  **PowerTransformer**: Yeo-Johnson transforms for `C1/C2` social classifications.
+5.  **Time Series Synthesis**: A 12-month sequential permutation is generated dynamically and fed into XGBoost for seasonal trend modeling.
 
-```text
-data/
-├── raw/
-│   ├── v1_2025_06/        # Historical data (Up to June 2025)
-│   └── v2_2026_01/        # Current rollout (Up to Jan 2026)
-└── processed/
-    └── v2/                # Training artifacts for the current model
-```
+---
 
-### Preprocessing Pipeline
-To ensure robust model performance across diverse UK geographies, we apply model-specific transformations:
-*   **Log1p Transform**: For right-skewed magnitudes (Population, Total Sales).
-*   **Yeo-Johnson**: For left-skewed distributions.
-*   **Quantile Binning**: For multimodal demographic features (Social Grades, Ethnicity).
-*   **Robust Scaling**: To handle extreme income outliers.
+## 🛡️ Anti-Bot & Rate Limiting Disclaimer
+The live `POST /predict` endpoint invokes the `InferencePipeline` which connects to external residential websites. To prevent IP bans, the scrapers in `src/scrapers/` must be configured with Rotating Proxies inside your `.env` file before executing high-volume bulk predictions.
 
 ---
 
 ## 🧪 Testing
 
-The project maintains high code quality through a rigorous testing suite.
+The API and ML inference layers are fully covered by integration tests utilizing `pytest`.
 
 ```bash
-# Run all tests
-python -m pytest tests/ -v
-
-# Run only scraper tests (slow)
-python -m pytest tests/test_scrapers/ -v
-
-# Run ML pipeline tests
-python -m pytest tests/test_ml/ -v
+# Run the FastAPI test suite covering scraper logic, serialization, and ML Output
+python -m pytest tests/test_api.py -v
 ```
-
----
-
-## 📜 Documentation
-
-*   [**System Architecture**](docs/architecture.md) – Detailed design doc.
-*   [**API Reference**](docs/api.md) – Endpoints and schemas.
-*   [**Preprocessing Strategy**](preprocessing_strategy.md) – In-depth data handling logic.
-
----
-
-## ⚖️ License
-
-Distributed under the MIT License. See `LICENSE` for more information.

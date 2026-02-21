@@ -64,6 +64,13 @@ def test_predict_endpoint_success(mock_scrapers, mock_model):
         assert data["predicted_sales"] >= 0 # XGBoost is designed to predict positive sales
         assert data["currency"] == "£"
         
+        # Verify 12-month time series generation
+        time_series = data["time_series"]
+        assert isinstance(time_series, list)
+        assert len(time_series) == 12
+        assert time_series[0]["predicted_sales"] == data["predicted_sales"]
+        assert "date" in time_series[0]
+        
         # Verify mapping worked
         features = data["features"]
         assert features["c1/c2"] == 15000
