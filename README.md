@@ -1,7 +1,7 @@
 # 📍 Location Analyzer v2
 
 > **Production-grade UK postcode analysis tool powering strategic retail expansion.**
-> Features live dual-source demographic scraping, XG-Boost Time-Series sales forecasting, and an interactive React dashboard.
+> Features live dual-source demographic scraping, a 4-Engine Median Ensemble Machine Learning pipeline (XGBoost, LightGBM, CatBoost, Random Forest) for Time-Series sales forecasting, and an interactive React dashboard.
 
 ---
 
@@ -11,7 +11,7 @@
 
 ### Key Capabilities
 *   **🕸️ Resilient Live Scraping**: Async Playwright Orchestration scraping `postcodearea.co.uk` and `crystalroof.com` simultaneously upon user request.
-*   **🤖 XGBoost Time-Series Forecasting**: Evaluates 12+ demographic features, applies rigorous Scikit-Learn transformations, and generates a 12-month trailing sales forecast.
+*   **🤖 Median Ensemble Forecasting**: Evaluates 12+ demographic features, applies rigorous Scikit-Learn transformations, and generates a 12-month trailing sales forecast by aggregating predictions from XGBoost, LightGBM, CatBoost, and Random Forest engines.
 *   **📊 Interactive React Dashboard**: A beautiful Dark-Mode `Vite` + `React` interface featuring `Leaflet` geospatial mapping and `Recharts` data visualization.
 *   **⚡ FastAPI Microservice**: High-concurrency python backend serving `pydantic` validated JSON APIs.
 
@@ -49,7 +49,7 @@ Ensure your `conda` environment is activated and dependencies are installed.
 cd location_analyzer_v2
 python -m uvicorn src.location_analyzer.api.main:app --reload
 ```
-The API will initialize, load the heavy XGBoost `.pkl` artifacts into memory, and begin listening on `http://127.0.0.1:8000`.
+The API will initialize, load the heavy Median Ensemble `.pkl` artifacts into memory, and begin listening on `http://127.0.0.1:8000`.
 
 ### 2️⃣ Start the React Frontend
 Open a **second terminal window**.
@@ -71,7 +71,7 @@ The inference engine strictly mirrors the training preprocessing rules to preven
 2.  **Log1p Transforms**: Applied to magnitudes (`population`, `Distance_to_Nearest_Station`).
 3.  **KBins Discretizer**: KMeans binning for employment statistics.
 4.  **PowerTransformer**: Yeo-Johnson transforms for `C1/C2` social classifications.
-5.  **Time Series Synthesis**: A 12-month sequential permutation is generated dynamically and fed into XGBoost for seasonal trend modeling.
+5.  **Time Series Synthesis**: A 12-month sequential permutation is generated dynamically and fed into the Median Ensemble for seasonal trend modeling across 4 separate sub-models.
 
 ---
 
