@@ -47,6 +47,7 @@ dependencies = [
     "scikit-learn",
     "statsmodels",
     "joblib",
+    "optuna",
     
     # Visualization
     "bokeh",

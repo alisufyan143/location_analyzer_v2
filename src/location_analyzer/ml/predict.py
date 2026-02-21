@@ -7,10 +7,46 @@ from typing import Dict, Any, List
 
 logger = logging.getLogger(__name__)
 
+class MedianEnsembleRegressor:
+    """
+    A custom wrapper class holding XGBoost, LightGBM, CatBoost, and Random Forest.
+    Required here in __main__ module scope so joblib can deserialize the object exported from the notebook.
+    """
+    def __init__(self, xgb_model, lgb_model, cb_model, rf_model, rf_preprocessor, cat_features):
+        self.xgb_model = xgb_model
+        self.lgb_model = lgb_model
+        self.cb_model = cb_model
+        self.rf_model = rf_model
+        self.rf_preprocessor = rf_preprocessor
+        self.cat_features = cat_features
+        
+    def predict(self, X):
+        import numpy as np
+        X_rf = self.rf_preprocessor.transform(X)
+        preds_rf = self.rf_model.predict(X_rf)
+        
+        X_xgb_lgb = X.copy()
+        for col in self.cat_features:
+            if col in X_xgb_lgb.columns:
+                X_xgb_lgb[col] = X_xgb_lgb[col].astype('category')
+                
+        preds_xgb = self.xgb_model.predict(X_xgb_lgb)
+        preds_lgb = self.lgb_model.predict(X_xgb_lgb)
+        
+        X_cb = X.copy()
+        for col in self.cat_features:
+            if col in X_cb.columns:
+                X_cb[col] = X_cb[col].fillna('Unknown').astype(str)
+                
+        preds_cb = self.cb_model.predict(X_cb)
+        
+        all_preds = np.vstack([preds_rf, preds_xgb, preds_lgb, preds_cb])
+        return np.median(all_preds, axis=0)
+
 class PredictionService:
     """
-    Loads the trained XGBoost model and all associated Scikit-Learn feature 
-    engineering transformers to provide real-time sales predictions.
+    Loads the trained Median Ensemble (XGB, LGBM, CB, RF) and all associated 
+    Scikit-Learn feature engineering transformers to provide real-time sales predictions.
     """
     
     def __init__(self, model_dir: str):
@@ -26,13 +62,13 @@ class PredictionService:
     def _load_artifacts(self):
         """Loads all .pkl artifacts from the models directory."""
         try:
-            model_path = os.path.join(self.model_dir, "xgboost_sales_model_v2_20_2_2026.pkl")
+            model_path = os.path.join(self.model_dir, "median_ensemble.pkl")
             if not os.path.exists(model_path):
-                # Fallback to the original v2 if the specific date one doesn't exist
+                # Fallback to the original XGBoost if the ensemble one doesn't exist
                 model_path = os.path.join(self.model_dir, "xgboost_sales_model_v2.pkl")
                 
             self.model = joblib.load(model_path)
-            logger.info(f"Successfully loaded XGBoost model from {model_path}")
+            logger.info(f"Successfully loaded Ensemble model from {model_path}")
             
             # Load transformers safely (they will be None if they don't exist)
             transformers = {
@@ -157,28 +193,21 @@ class PredictionService:
             df_clean['Dayofweek'] = now.weekday()
             df_clean['Is_Weekend'] = 1 if now.weekday() >= 5 else 0
 
-        # Construct final ordered XGBoost DataFrame
-        expected_features = self.model.feature_names_in_
+        # Construct final ordered DataFrame
+        # Get expected features from the XGBoost sub-model if ensemble, else from the model itself
+        expected_features = getattr(self.model.xgb_model, 'feature_names_in_', getattr(self.model, 'feature_names_in_', []))
+        
         for f in expected_features:
             if f not in df_clean.columns:
                 df_clean[f] = np.nan
         
         df_final = df_clean[expected_features].copy()
 
-        # Convert specific columns to native Pandas Categorical specifically for XGBoost
-        cat_features = ['Day_of_Week', 'Nearest_Station_Type']
-        for col in cat_features:
-            if col in df_final.columns:
-                # Cast through string to prevent float indices from np.nan injection,
-                # then explicitly back to category with actual NaN handling
-                cat_col = df_final[col].astype(str).replace('nan', np.nan).astype('category')
-                if len(cat_col.cat.categories) == 0:
-                    cat_col = cat_col.cat.add_categories(['Missing'])
-                df_final[col] = cat_col
-
         # Convert remaining object columns to float to avoid generic native typing errors
+        # (The Ensemble class will handle the explicit categorical conversions internally)
+        cat_features_known = ['Day_of_Week', 'Nearest_Station_Type']
         for col in df_final.columns:
-            if df_final[col].dtype == 'object' and col not in cat_features:
+            if df_final[col].dtype == 'object' and col not in cat_features_known:
                  df_final[col] = pd.to_numeric(df_final[col], errors='coerce')
 
         return df_final
