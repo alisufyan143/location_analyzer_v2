@@ -7,7 +7,10 @@ from typing import Dict, Any, List
 
 logger = logging.getLogger(__name__)
 
-class MedianEnsembleRegressor:
+import sys
+from sklearn.base import BaseEstimator, RegressorMixin
+
+class MedianEnsembleRegressor(BaseEstimator, RegressorMixin):
     """
     A custom wrapper class holding XGBoost, LightGBM, CatBoost, and Random Forest.
     Required here in __main__ module scope so joblib can deserialize the object exported from the notebook.
@@ -28,7 +31,7 @@ class MedianEnsembleRegressor:
         X_xgb_lgb = X.copy()
         for col in self.cat_features:
             if col in X_xgb_lgb.columns:
-                X_xgb_lgb[col] = X_xgb_lgb[col].astype('category')
+                X_xgb_lgb[col] = X_xgb_lgb[col].fillna('Unknown').astype(str).astype('category')
                 
         preds_xgb = self.xgb_model.predict(X_xgb_lgb)
         preds_lgb = self.lgb_model.predict(X_xgb_lgb)
@@ -42,6 +45,10 @@ class MedianEnsembleRegressor:
         
         all_preds = np.vstack([preds_rf, preds_xgb, preds_lgb, preds_cb])
         return np.median(all_preds, axis=0)
+
+# Critical fix for FastAPI/uvicorn: map this class into the __main__ execution 
+# namespace so joblib can unpickle the model that was exported from Jupyter.
+sys.modules['__main__'].MedianEnsembleRegressor = MedianEnsembleRegressor
 
 class PredictionService:
     """
@@ -210,6 +217,7 @@ class PredictionService:
             if df_final[col].dtype == 'object' and col not in cat_features_known:
                  df_final[col] = pd.to_numeric(df_final[col], errors='coerce')
 
+        df_final.columns = [str(c) for c in df_final.columns]
         return df_final
 
     def predict(self, raw_data: List[Dict[str, Any]]) -> List[float]:

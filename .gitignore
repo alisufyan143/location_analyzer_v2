@@ -215,3 +215,4 @@ scripts/
 xgboost_model_without_crystal_radius_1.61_april_2025.pkl
 debug_import.py
 pytest_error.txt
+models/*.pkl

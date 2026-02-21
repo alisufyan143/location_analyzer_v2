@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post("/predict", response_model=PredictResponse)
-async def predict_sales(request_body: PredictRequest, request: Request):
+def predict_sales(request_body: PredictRequest, request: Request):
     """
     Endpoint to trigger the live scraping sequence and return a Median Ensemble prediction
     spanning Random Forest, XGBoost, LightGBM, and CatBoost.
