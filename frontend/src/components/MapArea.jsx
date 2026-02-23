@@ -27,28 +27,7 @@ export default function MapArea({ result }) {
     return (
         <div style={{ height: '100%', width: '100%', position: 'relative' }}>
 
-            {isDefault && (
-                <div style={{
-                    position: 'absolute',
-                    top: '50%', left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    zIndex: 1000,
-                    pointerEvents: 'none'
-                }}>
-                    <h2 style={{
-                        color: 'var(--text-muted)',
-                        fontSize: '1.5rem',
-                        background: 'var(--glass-bg)',
-                        padding: '1rem 2rem',
-                        borderRadius: '100px',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid var(--border-color)',
-                        boxShadow: 'var(--shadow-lg)'
-                    }}>
-                        Enter a postcode to begin analysis
-                    </h2>
-                </div>
-            )}
+
 
             <MapContainer
                 center={defaultCenter}
@@ -65,9 +44,9 @@ export default function MapArea({ result }) {
                     url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                 />
 
-                {result && (
+                {result && result.features && result.features.lat ? (
                     <>
-                        <Marker position={mapCenter}>
+                        <Marker position={[result.features.lat, result.features.lng]}>
                             <Popup>
                                 <div style={{ color: '#000' }}>
                                     <strong>{result.postcode}</strong><br />
@@ -78,12 +57,12 @@ export default function MapArea({ result }) {
 
                         {/* Draw a subtle 1 mile radius circle representing our catchment area */}
                         <Circle
-                            center={mapCenter}
+                            center={[result.features.lat, result.features.lng]}
                             pathOptions={{ fillColor: 'var(--accent-primary)', color: 'var(--accent-primary)', opacity: 0.5, fillOpacity: 0.1 }}
                             radius={1609} // 1 mile in meters
                         />
                     </>
-                )}
+                ) : null}
             </MapContainer>
         </div>
     )

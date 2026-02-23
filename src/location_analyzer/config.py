@@ -40,6 +40,7 @@ class ScraperSettings(BaseSettings):
     timeout: int = 30
     proxies: Optional[list[str]] = None
     headless: bool = True
+    nomis_api_uid: Optional[str] = None
 
     model_config = SettingsConfigDict(env_prefix="SCRAPER_")
 

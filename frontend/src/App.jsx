@@ -5,13 +5,14 @@ import { MapPin, AlertCircle } from 'lucide-react'
 import PredictionForm from './components/PredictionForm'
 import MapArea from './components/MapArea'
 import ResultsPanel from './components/ResultsPanel'
+import ProcessingOverlay from './components/ProcessingOverlay'
 
 function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null)
 
-  const handlePredict = async (postcode, branchName) => {
+  const handlePredict = async (postcode) => {
     if (!postcode.trim()) {
       setError("Please enter a valid UK postcode.")
       return
@@ -23,9 +24,8 @@ function App() {
 
     try {
       const response = await axios.post('http://127.0.0.1:8000/predict', {
-        postcode: postcode,
-        branch_name: branchName
-      })
+        postcode: postcode
+      }, { timeout: 300000 })  // 5 min – scraping pipeline takes 60-90s
       setResult(response.data)
     } catch (err) {
       console.error(err)
@@ -66,11 +66,14 @@ function App() {
       </aside>
 
       {/* RIGHT MAIN PLATFORM: Map and Overlays */}
-      <main className="main-content">
+      <main className="main-content" style={{ position: 'relative' }}>
         <MapArea result={result} />
 
+        {/* The beautiful glassmorphic 90-second loading overlay */}
+        {loading && <ProcessingOverlay />}
+
         {/* Floating results panel that appears after prediction */}
-        {result && (
+        {result && !loading && (
           <ResultsPanel result={result} />
         )}
       </main>

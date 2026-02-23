@@ -19,7 +19,7 @@ Nomis API (https://www.nomisweb.co.uk/api/v01/help):
         NM_2079_1  (TS062) — NS-SeC (maps to AB / C1C2 / DE)
         NM_2083_1  (TS066) — Economic Activity
 
-    No authentication required (up to 25,000 cells per request).
+    Authenticated via optional uid param (removes 25K cell limit).
     Returns CSV with labelled category columns.
 
 Doogal (https://www.doogal.co.uk/ShowMap?postcode=...):
@@ -60,9 +60,13 @@ DOOGAL_URL = "https://www.doogal.co.uk/ShowMap?postcode={postcode}"
 
 
 # ─── Helper: Nomis CSV fetch ────────────────────────────
-def _nomis_csv(dataset_id: str, postcode: str) -> list[dict]:
+def _nomis_csv(dataset_id: str, postcode: str, uid: str | None = None) -> list[dict]:
     """
     Query one Nomis Census 2021 dataset for a postcode.
+
+    Args:
+        uid: Optional Nomis API UID for authenticated access
+             (removes 25K cell limit, prevents rate-limiting).
 
     Returns a list of dicts (one per CSV row) with keys from the header.
     Raises ScraperParsingError on non-200 or empty responses.
@@ -73,6 +77,8 @@ def _nomis_csv(dataset_id: str, postcode: str) -> list[dict]:
         f"?geography=POSTCODE|{pc_encoded};{GEO_TYPE}"
         f"&measures=20100"
     )
+    if uid:
+        url += f"&uid={uid}"
     logger.debug("Nomis request: %s", url)
 
     resp = requests.get(url, timeout=30)
@@ -144,8 +150,8 @@ def _total_row(rows: list[dict]) -> int:
 
 
 def _pct(part: float, total: float) -> float:
-    """Safe percentage calculation."""
-    return round((part / total) * 100, 1) if total else 0.0
+    """Safe fraction calculation (0.0–1.0 scale, matching ML model training format)."""
+    return round(part / total, 3) if total else 0.0
 
 
 # ─── Main Scraper ────────────────────────────────────────
@@ -165,6 +171,12 @@ class DemographicsScraper(BaseScraper):
     def __init__(self, headless: bool = True):
         super().__init__()
         self.headless = headless
+        # Load Nomis API key from config (if available)
+        try:
+            from location_analyzer.config import settings
+            self._nomis_uid = settings.scraper.nomis_api_uid
+        except Exception:
+            self._nomis_uid = None
 
     def scrape(self, postcode: str) -> dict[str, Any]:
         """
@@ -186,7 +198,7 @@ class DemographicsScraper(BaseScraper):
 
         # ── 1. Population (TS001) ───────────────────────────
         try:
-            pop_rows = _nomis_csv(DS_POPULATION, postcode)
+            pop_rows = _nomis_csv(DS_POPULATION, postcode, self._nomis_uid)
             result["population"] = _total_row(pop_rows)
             logger.info("Population: %s", result["population"])
         except Exception as e:
@@ -195,7 +207,7 @@ class DemographicsScraper(BaseScraper):
 
         # ── 2. Households (TS003) ───────────────────────────
         try:
-            hh_rows = _nomis_csv(DS_HOUSEHOLDS, postcode)
+            hh_rows = _nomis_csv(DS_HOUSEHOLDS, postcode, self._nomis_uid)
             result["households"] = _total_row(hh_rows)
             logger.info("Households: %s", result["households"])
         except Exception as e:
@@ -204,7 +216,7 @@ class DemographicsScraper(BaseScraper):
 
         # ── 3. Ethnicity (TS021) ────────────────────────────
         try:
-            eth_rows = _nomis_csv(DS_ETHNICITY, postcode)
+            eth_rows = _nomis_csv(DS_ETHNICITY, postcode, self._nomis_uid)
             total_eth = _total_row(eth_rows)
 
             # Dynamically find the NAME column (could be C2021_ETH_20_NAME or C2021_ETH_9_NAME)
@@ -228,7 +240,7 @@ class DemographicsScraper(BaseScraper):
 
         # ── 4. Economic Activity (TS066) ────────────────────
         try:
-            econ_rows = _nomis_csv(DS_ECON, postcode)
+            econ_rows = _nomis_csv(DS_ECON, postcode, self._nomis_uid)
             total_econ = _total_row(econ_rows)  # All residents 16+
 
             # Dynamically find the NAME column (e.g. C2021_EASTAT_20_NAME)
@@ -269,7 +281,7 @@ class DemographicsScraper(BaseScraper):
 
         # ── 5. NS-SeC → Social Grades AB/C1C2/DE (TS062) ───
         try:
-            nssec_rows = _nomis_csv(DS_NSSEC, postcode)
+            nssec_rows = _nomis_csv(DS_NSSEC, postcode, self._nomis_uid)
             total_nssec = _total_row(nssec_rows)
 
             # Dynamically find the NAME column
@@ -343,7 +355,7 @@ class DemographicsScraper(BaseScraper):
         url = DOOGAL_URL.format(postcode=pc_encoded)
         logger.info("Doogal request (Playwright, headless=%s): %s", self.headless, url)
 
-        max_attempts = 2
+        max_attempts = 3
         for attempt in range(1, max_attempts + 1):
             try:
                 return self._fetch_doogal_income_attempt(url, postcode, attempt)
@@ -371,7 +383,7 @@ class DemographicsScraper(BaseScraper):
             page = context.new_page()
 
             try:
-                page.goto(url, timeout=60000, wait_until="domcontentloaded")
+                page.goto(url, timeout=40000, wait_until="domcontentloaded")
                 # Wait for the demographics section to render
                 page.wait_for_timeout(3000)
 

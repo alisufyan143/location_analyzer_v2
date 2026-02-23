@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Request
@@ -9,7 +10,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post("/predict", response_model=PredictResponse)
-def predict_sales(request_body: PredictRequest, request: Request):
+async def predict_sales(request_body: PredictRequest, request: Request):
     """
     Endpoint to trigger the live scraping sequence and return a Median Ensemble prediction
     spanning Random Forest, XGBoost, LightGBM, and CatBoost.
@@ -22,10 +23,10 @@ def predict_sales(request_body: PredictRequest, request: Request):
     logger.info(f"Received Prediction Request for: {postcode}") 
     
     try:
-        # Step 1: Run the scrapers natively in the inference pipeline
-        # Todo: Using run_in_threadpool if latency causes async blocking
+        # Step 1: Run the scraping pipeline in a thread pool to avoid
+        # blocking uvicorn's async event loop (Playwright uses sync API)
         pipeline = InferencePipeline()
-        features = pipeline.run(postcode)
+        features = await asyncio.to_thread(pipeline.run, postcode)
         
         if not features:
             raise HTTPException(status_code=404, detail=f"Could not extract any data for postcode: {postcode}")

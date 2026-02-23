@@ -3,26 +3,14 @@ import { Search, Info } from 'lucide-react'
 
 export default function PredictionForm({ onPredict, isLoading }) {
     const [postcode, setPostcode] = useState('')
-    const [branchName, setBranchName] = useState('')
 
     const handleSubmit = (e) => {
         e.preventDefault()
-        onPredict(postcode, branchName)
+        onPredict(postcode)
     }
 
     return (
         <form onSubmit={handleSubmit} className="form-container">
-            <div className="input-group">
-                <label className="label">Branch Name (Optional)</label>
-                <input
-                    type="text"
-                    className="input-field"
-                    placeholder="e.g. Manchester Central"
-                    value={branchName}
-                    onChange={(e) => setBranchName(e.target.value)}
-                    disabled={isLoading}
-                />
-            </div>
 
             <div className="input-group">
                 <label className="label">Postcode (Required)</label>

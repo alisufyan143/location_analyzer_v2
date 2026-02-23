@@ -38,12 +38,12 @@ export default function ResultsPanel({ result }) {
                     {result.currency}{result.predicted_sales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.5rem', marginBottom: '2rem' }}>
-                    For {result.postcode} {f['Branch Name'] ? `(${f['Branch Name']})` : ''}
+                    For {result.postcode}
                 </p>
 
                 {/* 12-Month Projection Chart */}
                 {result.time_series && result.time_series.length > 0 && (
-                    <div style={{ height: '200px', width: '100%', marginTop: 'auto' }}>
+                    <div style={{ height: '350px', width: '100%', marginTop: 'auto' }}>
                         <h3 style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>12-Month Projection</h3>
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={result.time_series} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
