@@ -19,7 +19,7 @@ def predict_sales(request_body: PredictRequest, request: Request):
         raise HTTPException(status_code=500, detail="PredictionService is offline. ML artifacts could not be loaded on startup.")
         
     postcode = request_body.postcode.upper().strip()
-    logger.info(f"Received Prediction Request for: {postcode}")
+    logger.info(f"Received Prediction Request for: {postcode}") 
     
     try:
         # Step 1: Run the scrapers natively in the inference pipeline
